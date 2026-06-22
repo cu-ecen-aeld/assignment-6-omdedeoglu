@@ -1,0 +1,43 @@
+#!/bin/sh
+
+MODULE_DIR="/lib/modules/$(uname -r)/extra"
+
+case "$1" in
+    start)
+        echo "Loading misc modules"
+
+        modprobe hello || exit 1
+        insmod "$MODULE_DIR/faulty.ko" || exit 1
+
+        major=$(awk '$2=="faulty" {print $1}' /proc/devices)
+
+        if [ -n "$major" ]; then
+            rm -f /dev/faulty
+            mknod /dev/faulty c $major 0
+            chmod 664 /dev/faulty
+        else
+            echo "No major number found for faulty"
+            exit 1
+        fi
+        ;;
+
+    stop)
+        echo "Unloading misc modules"
+
+        rm -f /dev/faulty
+        rmmod faulty || true
+        rmmod hello || true
+        ;;
+
+    restart)
+        "$0" stop
+        "$0" start
+        ;;
+
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit 0
